@@ -1,0 +1,343 @@
+
+options {
+  DEBUG_PARSER = false;
+  DEBUG_TOKEN_MANAGER = false;
+}
+
+PARSER_BEGIN(IntermediareTotalCompiler)
+import java.io.*;
+import java.util.LinkedList;
+
+import Render.AbstractRenderElement;
+import Render.BlockElement;
+import Render.RenderElementInterface;
+import Render.Commands.Output;
+import Render.Commands.VariableAttribution;
+import Render.Expressions.AbstractExpression;
+import Render.Expressions.LogicalOperator;
+import Render.Expressions.MathOperator;
+import Render.Expressions.Value;
+import Render.Expressions.Variable;
+import Render.FlowControllers.ConditionalElement;
+import Render.FlowControllers.DoWhileElement;
+import Render.FlowControllers.ForElement;
+import Render.FlowControllers.LoopElement;
+
+public class IntermediareTotalCompiler {
+   static ReferenceTable referenceTable = new ReferenceTable();
+   static BlockElement mainBlock; 
+   public static void main(String args[])  throws ParseException  {
+       // CompiladorExemplo analisador = null;
+        try
+   {      
+      IntermediareTotalCompiler analisador = new IntermediareTotalCompiler (System.in);
+      mainBlock = analisador.parse(); 
+      String result = mainBlock.render();
+      System.out.println(result);
+      ByteCodeFile.write(result);
+//     GeradorCodigoDestino.geraCodigoAssembler(listaComandos);
+    
+    System.out.println("Compilado....");
+  }   
+  catch(TokenMgrError e) {
+  System.err.println("Lexical Error:\n" + e.getMessage()); 
+ }
+  catch(ParseException e) {
+  System.err.println("Syntactic Error:\n" + e.getMessage());
+  }
+  catch(Exception e) {
+  System.err.println("Semantic error:\n" + e.getMessage()  );  
+  e.printStackTrace();
+  }
+ }  
+}
+PARSER_END(IntermediareTotalCompiler)
+SKIP : { " " | "\t" | "\r" | "\n" }
+
+TOKEN [IGNORE_CASE] : {
+     <EXIBE: "exibe" >
+}
+TOKEN : {
+      < IF: "if"> |
+      < ELSE: "else"> |
+      < WHILE: "while"> |
+      < DO : "do" > |
+      < FOR: "for"> |
+      <AP: "(">   |
+      <FP: ")">   |
+      <AC: "{">   |
+      <FC: "}">   |
+      < PRINT: "print" > |
+      < IDENT:   (["a"-"z"])+ > |
+      < ATRIB:   ":=" >             |
+      < INCREMENT:   "+=" | "-=" | "*=" | "/=" >             |
+      < AUTOINCREMENT:   "++" | "--" >             |
+      < OR:   "||" >             |
+      < AND:   "&&" >             |
+      < LOGICAL_OPERATOR: "=="  | "!=" | ">" | "<" | ">=" | "<="  > |
+      < MATH_OPERATOR_GRAU_2:  "+" | "-">              |
+      < MATH_OPERATOR_GRAU_1:  "*" | "/">              |
+      < COMPARACAO:  "==" >              |
+      < PT_VIRG: ";" >              |
+     
+      < NUMBER:   (["0"-"9"])+("."(["0"-"9"])+)? > 
+}
+
+BlockElement parse() : {BlockElement block = null;}
+{
+   block=parseBlock() <EOF>
+   {
+    return block;
+   }
+}
+////////////////////////////////////////////////////////////////////////////////
+BlockElement parseBlock() : {BlockElement block = new BlockElement(); AbstractRenderElement child = null;}
+{
+   ( child = parseCommand() 
+   {
+      block.addChild(child);
+   }
+   )*
+   {
+    return block;
+   }
+}
+////////////////////////////////////////////////////////////////////////////////
+AbstractRenderElement parseCommand() : {AbstractRenderElement renderElement=null;}
+{
+      (
+      renderElement = print() <PT_VIRG>
+      | 
+      renderElement = atribui() <PT_VIRG>
+      |
+      renderElement = logicalIF()
+      |
+      renderElement = loopWHILE()
+      |
+      renderElement = loopFOR()
+      |
+      renderElement = loopDOWHILE()  <PT_VIRG>
+      )
+     {
+      return  renderElement;
+     } 
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+AbstractRenderElement print() : {Output outputElement=null;LinkedList <AbstractExpression> listaExp;}
+{
+      <PRINT> <AP> listaExp = expression() <FP>
+      {
+      outputElement = new Output();
+      outputElement.addAllExpChildren(listaExp);
+      return outputElement;
+      }
+}
+////////////////////////////////////////////////////////////////////////////////////
+AbstractRenderElement atribui() : {Token t, attrType; LinkedList <AbstractExpression> listaExp = null; VariableAttribution var = null; Variable consultVar = null;Value increment;}
+{
+      t=<IDENT> ((attrType=<ATRIB> listaExp = expression()) | (attrType=<INCREMENT> listaExp = expression()) | (attrType=<AUTOINCREMENT>))
+      {
+        if (referenceTable.exists(t.image)) {
+          var = new VariableAttribution("double", t.image, referenceTable.getVariableSerialID(t.image));
+
+          switch (attrType.image) {
+            case "+=":
+            case "-=":
+            case "*=":
+            case "/=":
+              consultVar = new Variable("double", referenceTable.getVariableSerialID(t.image));
+              listaExp.addFirst(consultVar);
+              listaExp.add(new MathOperator(attrType.image.substring(0,1), consultVar, listaExp.getLast()));
+              break;
+            case "++":
+            case "--":
+              listaExp = new LinkedList<AbstractExpression>();
+              consultVar = new Variable("double", referenceTable.getVariableSerialID(t.image));
+              increment = new Value("double", "1");
+              listaExp.add(consultVar);
+              listaExp.add(increment);
+              listaExp.add(new MathOperator(attrType.image.substring(0,1), consultVar, increment));
+            break;
+            default:
+            break;
+          }
+          var.addAllExpChildren(listaExp);
+        } else if(attrType.image.equals(":=")) {
+          var = new VariableAttribution("double", t.image);
+          referenceTable.addVariable(var);
+          var.addAllExpChildren(listaExp);
+        } else {
+          System.out.println("[ ERROR ] Variável " + t.image + " inexistente para incremento.");
+          System.exit(-1);
+        }
+        
+        return var;
+      }
+}
+////////////////////////////////////////////////////////////////////////////////////
+AbstractRenderElement loopWHILE() : {Token t; LinkedList <AbstractExpression> listaExp;LoopElement  loop = null;VariableAttribution var; BlockElement mainBlock =null;}
+{
+      <WHILE> <AP> listaExp = logicalExpressionOR("BlockEnd"+(BlockElement.getQtyBlockInstances() + 1) ) <FP> <AC> mainBlock = parseBlock() <FC> 
+      {
+        loop = new LoopElement(listaExp, mainBlock);
+
+        return loop;
+      }
+}
+////////////////////////////////////////////////////////////////////////////////////
+AbstractRenderElement loopDOWHILE() : {Token t; LinkedList <AbstractExpression> listaExp;DoWhileElement loop = null;VariableAttribution var; BlockElement mainBlock =null;}
+{
+      <DO> <AC> mainBlock = parseBlock() <FC> <WHILE> <AP> listaExp = logicalExpressionOR("BlockEnd"+(BlockElement.getQtyBlockInstances()) ) <FP>
+      {
+        loop = new DoWhileElement(listaExp, mainBlock);
+
+        return loop;
+      }
+}
+LinkedList<RenderElementInterface> readAttributionCollection() : {LinkedList<RenderElementInterface> collection = new LinkedList<RenderElementInterface>(); AbstractRenderElement renderElement=null;} {
+  ((renderElement = atribui()) {
+    collection.add(renderElement);
+
+  })?
+  {
+    return collection;
+  }
+}
+////////////////////////////////////////////////////////////////////////////////////
+AbstractRenderElement loopFOR() : {Token t; LinkedList <AbstractExpression> listaExp;LoopElement  loop = null;VariableAttribution var; BlockElement mainBlock =null;LinkedList<RenderElementInterface> pre, post;}
+{
+      <FOR> <AP> pre=readAttributionCollection() <PT_VIRG> listaExp = logicalExpressionOR("BlockEnd"+(BlockElement.getQtyBlockInstances() + 1) ) <PT_VIRG> post=readAttributionCollection() <FP> <AC> mainBlock = parseBlock() <FC> 
+      {
+        loop = new ForElement(pre, post, listaExp, mainBlock);
+        return loop;
+      }
+}
+////////////////////////////////////////////////////////////////////////////////////
+AbstractRenderElement logicalIF() : {Token t; LinkedList <AbstractExpression> listaExp;ConditionalElement  conditional = null;VariableAttribution var; BlockElement mainBlock =null, elseBlock = null;}
+{
+      <IF> <AP> listaExp = logicalExpressionOR("BlockEnd"+(BlockElement.getQtyBlockInstances() + 1) ) <FP> <AC> mainBlock = parseBlock() <FC> (<ELSE><AC> elseBlock = parseBlock() <FC>)? 
+      {
+        if (elseBlock != null) {
+          conditional = new ConditionalElement(listaExp, mainBlock, elseBlock);
+        } else {
+          conditional = new ConditionalElement(listaExp, mainBlock);
+        }
+        return conditional;
+      }
+}
+//////////////////////////////////////////////////////////////////////////////////////
+LinkedList <AbstractExpression> logicalExpressionOR(String blockTarget) : { LinkedList <AbstractExpression> item=null;MathOperator mathOperator = null;Token operacao=null; LinkedList <AbstractExpression> listaExp = new LinkedList <AbstractExpression> (); }
+{
+      item= logicalExpressionAND(blockTarget) // a
+      {
+       listaExp.addAll(item);
+       }
+       ((operacao=<OR>)  item = logicalExpressionAND(blockTarget) //b
+       {
+       listaExp.addAll(item); //segundo operando
+
+       }
+
+      )* 
+      {
+       return listaExp;
+       }
+}
+//////////////////////////////////////////////////////////////////////////////////////
+LinkedList <AbstractExpression> logicalExpressionAND(String blockTarget) : { LinkedList <AbstractExpression> item=null,item2=null;MathOperator mathOperator = null;Token operacao=null; LinkedList <AbstractExpression> listaExp = new LinkedList <AbstractExpression> (); }
+{
+      item= logicalFactor(blockTarget, true)
+      {
+        
+        listaExp.addAll(item);
+      }
+       ((operacao=<AND>)  item = logicalFactor(blockTarget, false) //b
+       {
+       listaExp.addAll(item); //segundo operando
+       /* Esta parte caracteriza o formato posfixo, pois a operação de soma só e efetuada depois da execução do segundo operando    */
+
+       }
+
+      )* 
+      {
+       return listaExp;
+       }
+}
+//////////////////////////////////////////////////////////////////////////////////////
+LinkedList <AbstractExpression> logicalFactor(String blockTarget, boolean invert) : { LinkedList <AbstractExpression> item=null, item2=null;LogicalOperator logicalOperator = null;Token operacao=null; LinkedList <AbstractExpression> listaExp = new LinkedList <AbstractExpression> (); }
+{
+      item= expression() operacao=<LOGICAL_OPERATOR> item2=expression() // a
+      {
+       listaExp.addAll(item);
+      
+       listaExp.addAll(item2); //segundo operando
+       logicalOperator = new LogicalOperator(invert? LogicalOperator.getInvertedOperator(operacao.image) :operacao.image, item.getLast(), item2.getLast(), blockTarget);
+       listaExp.add(logicalOperator); //segundo operando
+       
+       return listaExp;
+       }
+}
+//////////////////////////////////////////////////////////////////////////////////////
+LinkedList <AbstractExpression> expression() : { LinkedList <AbstractExpression> item=null;MathOperator mathOperator = null;Token operacao=null; LinkedList <AbstractExpression> listaExp = new LinkedList <AbstractExpression> (); }
+{
+      item= expression1() // a
+      {
+       listaExp.addAll(item);
+       }
+       ((operacao=<MATH_OPERATOR_GRAU_2>)  item = expression1() //b
+       {
+       listaExp.addAll(item); //segundo operando
+       mathOperator = new MathOperator(operacao.image, listaExp.get(listaExp.size() - 2), listaExp.getLast());
+       listaExp.add(mathOperator); //segundo operando
+       /* Esta parte caracteriza o formato posfixo, pois a operação de soma só e efetuada depois da execução do segundo operando    */
+
+       }
+
+      )* 
+      {
+       return listaExp;
+       }
+}
+//////////////////////////////////////////////////////////////////////////////////////
+LinkedList <AbstractExpression> expression1() : {AbstractExpression item=null, a=null, b=null;MathOperator mathOperator = null;Token operacao=null; LinkedList <AbstractExpression> listaExp = new LinkedList <AbstractExpression> (); }
+{
+      item= fator() // a
+      {
+       listaExp.add(item);
+       a = item; //Primeiro operando
+       }
+       ((operacao=<MATH_OPERATOR_GRAU_1>)  item = fator() //b
+       {
+       listaExp.add(item); //segundo operando
+       b = item;
+       mathOperator = new MathOperator(operacao.image, a, b);
+       listaExp.add(mathOperator); //segundo operando
+       a = mathOperator;
+       /* Esta parte caracteriza o formato posfixo, pois a operação de soma só e efetuada depois da execução do segundo operando    */
+
+       }
+
+      )* 
+      {
+       return listaExp;
+       }
+}
+////////////////////////////////////////////////////////////////////////////////////////
+AbstractExpression fator() : {Token t; Variable var=null;Value value = null; int valorNumero;}
+{
+      t = <IDENT>
+      {
+          
+       var = referenceTable.stackVariable(t.image);
+       return var;
+      }
+  |
+      t = <NUMBER>
+      {
+
+      value = new Value("double", t.image);
+      return value;
+       }
+}
+//////////////////////////////////////////////////////////////////////////////////////
