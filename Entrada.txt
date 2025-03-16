@@ -11,10 +11,10 @@ if ( a > a || b > a && a > a) {
 }
 
 string := " test ";
-stringzz := (2*8) - 5 + 2 + string + (2*8) - 5 + 2 + " carro"+ string;
+stringzz := (2*8) - 5 + 2 + string + (2*8) - 5 + 2 + string;
 print(stringzz);
 
-z := !a > a && b > a? "carro " + 2 * 2 : "moto " + 4 * 4;
+z := !a > a && b > a? "carro " + 2 * 2 :  4 * 4;
 w := !a > a && b > a?  2 * 2 :  4 * 4;
 
 

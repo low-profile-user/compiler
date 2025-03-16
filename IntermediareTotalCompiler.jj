@@ -37,6 +37,7 @@ import Render.Expressions.Variable;
 import Render.FlowControllers.ConditionalElement;
 import Render.FlowControllers.DoWhileElement;
 import Render.FlowControllers.ForElement;
+import Render.FlowControllers.InlineConditionalElement;
 import Render.FlowControllers.LoopElement;
 
 public class IntermediareTotalCompiler {
@@ -156,7 +157,7 @@ AbstractRenderElement print() : {Output outputElement=null;LinkedList <AbstractE
 ////////////////////////////////////////////////////////////////////////////////////
 AbstractRenderElement atribui() : {Token t, attrType; LinkedList <AbstractExpression> expList = null; VariableAttribution var = null; Variable consultVar = null;Value increment; AbstractRenderElement logical=null;}
 {
-      t=<IDENT>  ((attrType=<ATRIB> (LOOKAHEAD(logicalINLINE(t.image)) logical = logicalINLINE(t.image) | expList = expression()))  | (attrType=<INCREMENT> expList = expression()) | (attrType=<AUTOINCREMENT>))
+      t=<IDENT>  ((attrType=<ATRIB> (LOOKAHEAD(logicalINLINE(t.image)) expList = logicalINLINE(t.image) | expList = expression()))  | (attrType=<INCREMENT> expList = expression()) | (attrType=<AUTOINCREMENT>))
       {
         if (logical != null) return logical;
         if (referenceTable.exists(t.image)) {
@@ -198,9 +199,9 @@ AbstractRenderElement atribui() : {Token t, attrType; LinkedList <AbstractExpres
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
-AbstractRenderElement logicalINLINE(String varRef) : {Token t; LinkedList <AbstractExpression> exp=null, mainExp =null, elseExp = null;ConditionalElement  conditional = null;VariableAttribution var;BlockElement mainBlock = null, elseBlock = null;String mainType= "", elseType="";}
+LinkedList<AbstractExpression> logicalINLINE(String varRef) : {Token t; LinkedList <AbstractExpression> exp=null, mainExp =null, elseExp = null;InlineConditionalElement  conditional = null;VariableAttribution var;BlockElement mainBlock = null, elseBlock = null;String mainType= "", elseType="", type = "";}
 {
-      exp=logicalExpressionOR( ""+(BlockElement.getQtyBlockInstances() + 1), false) <TER_IF> mainExp = expression() ":" elseExp = expression()
+      exp=logicalExpressionOR( ""+(BlockElement.getQtyBlockInstances() + 1), false) ( t=<TER_IF> mainExp = expression() ":" elseExp = expression())
       {
         if(mainExp.isEmpty() || elseExp.isEmpty()) {
           System.out.println("[ERROR] Expressão ternária não pode ter retorno vazio.");
@@ -211,21 +212,16 @@ AbstractRenderElement logicalINLINE(String varRef) : {Token t; LinkedList <Abstr
         mainType = mainExp.getLast().getType();
         elseType = elseExp.getLast().getType();
 
-        if(!mainType.equals(elseType)) {
-          System.out.println("[ERROR] Expressão precisa retornar um tipo só nos dois cenários.");
-          System.exit(1);
-        }
-        
+                
         if(referenceTable.exists(varRef) && !mainType.equals(referenceTable.getType(varRef))) {
           System.out.println("ERROR] Tipo de atribuição inválido.\r\n");
           System.exit(1);
         }
 
         if (referenceTable.exists(varRef)) {
-          var = new VariableAttribution(referenceTable.getType(varRef), varRef, referenceTable.getVariableSerialID(varRef));
+          type = referenceTable.getType(varRef);
         } else {
-          var = new VariableAttribution(mainType, varRef);
-          referenceTable.addVariable(var);
+          type = mainType;
         }
 
         
@@ -233,13 +229,15 @@ AbstractRenderElement logicalINLINE(String varRef) : {Token t; LinkedList <Abstr
         elseBlock = new BlockElement();
         mainBlock.addAllExpChildren(mainExp);
         elseBlock.addAllExpChildren(elseExp);   
-        if (var != null) {
-          mainBlock.addChild(var);
-          elseBlock.addChild(var);
-        }     
+        // if (var != null) {
+        //   mainBlock.addChild(var);
+        //   elseBlock.addChild(var);
+        // }     
         
-        conditional = new ConditionalElement(exp, mainBlock, elseBlock);
-        return conditional;
+        conditional = new InlineConditionalElement(type, exp, mainType, mainBlock, elseType, elseBlock);
+        exp = new LinkedList<AbstractExpression>();
+        exp.add(conditional);
+        return exp;
       }
 }
 ////////////////////////////////////////////////////////////////////////////////////
