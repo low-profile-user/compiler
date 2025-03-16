@@ -85,6 +85,7 @@ TOKEN : {
       <AC: "{">   |
       <FC: "}">   |
       < PRINT: "print" > |
+      < BOOLEAN_CALL: "bool"> |
       < BOOLEAN: "true"  | "false" > |
       <STRING: "\"" (~["\""])* "\"" > |
       < IDENT:   (["a"-"z"]|["A"-"Z"])(["a"-"z"]|["A"-"Z"]|["0"-"9"]|["_"])* > |
@@ -199,10 +200,17 @@ AbstractRenderElement atribui() : {Token t, attrType; LinkedList <AbstractExpres
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
-LinkedList<AbstractExpression> logicalINLINE(String varRef) : {Token t; LinkedList <AbstractExpression> exp=null, mainExp =null, elseExp = null;InlineConditionalElement  conditional = null;VariableAttribution var;BlockElement mainBlock = null, elseBlock = null;String mainType= "", elseType="", type = "";}
+LinkedList<AbstractExpression> logicalINLINE(String varRef) : {Token t=null; LinkedList <AbstractExpression> exp=null, mainExp =null, elseExp = null;InlineConditionalElement  conditional = null;VariableAttribution var;BlockElement mainBlock = null, elseBlock = null;String mainType= "", elseType="", type = "";}
 {
-      exp=logicalExpressionOR( ""+(BlockElement.getQtyBlockInstances() + 1), false) ( t=<TER_IF> mainExp = expression() ":" elseExp = expression())
+      (exp=logicalExpressionOR( ""+(BlockElement.getQtyBlockInstances() + 1), false) (<TER_IF> mainExp = expression() ":" elseExp = expression()) |  t=<BOOLEAN_CALL><AP> exp=logicalExpressionOR( ""+(BlockElement.getQtyBlockInstances() + 1), false) <FP>)
       {
+        if (t != null) {
+          conditional = new InlineConditionalElement(exp);
+          exp = new LinkedList<AbstractExpression>();
+          exp.add(conditional);
+          return exp;
+        }
+
         if(mainExp.isEmpty() || elseExp.isEmpty()) {
           System.out.println("[ERROR] Expressão ternária não pode ter retorno vazio.");
           System.exit(1);

@@ -34,7 +34,7 @@ public class InlineConditionalElement extends AbstractExpression {
     BlockElement elseBlock = new BlockElement();
 
     mainBlock.addChild(new Value("double", "1"));
-    mainBlock.addChild(new Value("double", "0"));
+    elseBlock.addChild(new Value("double", "0"));
 
     this.verificationExpression = verificationExpression;
     this.mainBlock = mainBlock;
