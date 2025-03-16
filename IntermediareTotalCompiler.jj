@@ -31,6 +31,7 @@ import Render.Expressions.Goto;
 import Render.Expressions.Label;
 import Render.Expressions.LogicalOperator;
 import Render.Expressions.MathOperator;
+import Render.Expressions.StringMathOperator;
 import Render.Expressions.Value;
 import Render.Expressions.Variable;
 import Render.FlowControllers.ConditionalElement;
@@ -48,7 +49,7 @@ public class IntermediareTotalCompiler {
       String result = mainBlock.render();
       ByteCodeFile.write(result);
       
-      System.out.println("Compilado....");
+      System.out.println("Compilado...");
     }   
     catch(TokenMgrError e) {
       System.err.println("Lexical Error:\n" + e.getMessage()); 
@@ -64,10 +65,13 @@ public class IntermediareTotalCompiler {
 }
 PARSER_END(IntermediareTotalCompiler)
 SKIP : { " " | "\t" | "\r" | "\n" }
-
-TOKEN [IGNORE_CASE] : {
-     <EXIBE: "exibe" >
+SPECIAL_TOKEN :
+{
+  <SINGLE_LINE_COMMENT: "//" (~["\n","\r"])* ("\n"|"\r"|"\r\n")>
+  |
+  <MULTIPLE_LINE_COMMENT: "/*" (~["*"])* "*" (~["*","/"] (~["*"])* "*" | "*")* "/">
 }
+
 TOKEN : {
       < IF: "if"> |
       < TER_IF: "?"> |
@@ -80,7 +84,8 @@ TOKEN : {
       <AC: "{">   |
       <FC: "}">   |
       < PRINT: "print" > |
-      < IDENT:   (["a"-"z"])+ > |
+      <STRING: "\"" (~["\""])* "\"" > |
+      < IDENT:   (["a"-"z"]|["A"-"Z"])(["a"-"z"]|["A"-"Z"]|["0"-"9"]|["_"])* > |
       < ATRIB:   ":=" >             |
       < INCREMENT:   "+=" | "-=" | "*=" | "/=" >             |
       < AUTOINCREMENT:   "++" | "--" >             |
@@ -90,7 +95,6 @@ TOKEN : {
       < LOGICAL_OPERATOR: "=="  | "!=" | ">" | "<" | ">=" | "<="  > |
       < MATH_OPERATOR_GRAU_2:  "+" | "-">              |
       < MATH_OPERATOR_GRAU_1:  "*" | "/">              |
-      < COMPARACAO:  "==" >              |
       < PT_VIRG: ";" >              |
      
       < NUMBER:   (["0"-"9"])+("."(["0"-"9"])+)? > 
@@ -119,6 +123,7 @@ BlockElement parseBlock() : {BlockElement block = new BlockElement(); AbstractRe
 AbstractRenderElement parseCommand() : {AbstractRenderElement renderElement=null;}
 {
       (
+      
       renderElement = print() <PT_VIRG>
       | 
       renderElement = atribui() <PT_VIRG>
@@ -137,11 +142,12 @@ AbstractRenderElement parseCommand() : {AbstractRenderElement renderElement=null
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
-AbstractRenderElement print() : {Output outputElement=null;LinkedList <AbstractExpression> expList;}
+AbstractRenderElement print() : {Output outputElement=null;LinkedList <AbstractExpression> expList; AbstractExpression exp;}
 {
       <PRINT> <AP> expList = expression() <FP>
       {
-      outputElement = new Output();
+        exp = expList.getLast();
+      outputElement = new Output(exp.getTypeIndex());
       outputElement.addAllExpChildren(expList);
       return outputElement;
       }
@@ -178,7 +184,7 @@ AbstractRenderElement atribui() : {Token t, attrType; LinkedList <AbstractExpres
           }
           var.addAllExpChildren(expList);
         } else if(attrType.image.equals(":=")) {
-          var = new VariableAttribution("double", t.image);
+          var = new VariableAttribution(expList.getLast().getType(), t.image);
           referenceTable.addVariable(var);
           var.addAllExpChildren(expList);
         } else {
@@ -191,27 +197,45 @@ AbstractRenderElement atribui() : {Token t, attrType; LinkedList <AbstractExpres
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
-AbstractRenderElement logicalINLINE(String varRef) : {Token t; LinkedList <AbstractExpression> exp=null, mainExp =null, elseExp = null;ConditionalElement  conditional = null;VariableAttribution var;BlockElement mainBlock = null, elseBlock = null;}
+AbstractRenderElement logicalINLINE(String varRef) : {Token t; LinkedList <AbstractExpression> exp=null, mainExp =null, elseExp = null;ConditionalElement  conditional = null;VariableAttribution var;BlockElement mainBlock = null, elseBlock = null;String mainType= "", elseType="";}
 {
-      exp=logicalExpressionOR( ""+(BlockElement.getQtyBlockInstances() + 1) ) <TER_IF> mainExp = expression() ":" elseExp = expression()
+      exp=logicalExpressionOR( ""+(BlockElement.getQtyBlockInstances() + 1), false) <TER_IF> mainExp = expression() ":" elseExp = expression()
       {
+        if(mainExp.isEmpty() || elseExp.isEmpty()) {
+          System.out.println("[ERROR] Expressão ternária não pode ter retorno vazio.");
+          System.exit(1);
+        } 
+
+
+        mainType = mainExp.getLast().getType();
+        elseType = elseExp.getLast().getType();
+
+        if(!mainType.equals(elseType)) {
+          System.out.println("[ERROR] Expressão precisa retornar um tipo só nos dois cenários.");
+          System.exit(1);
+        }
+        
+        if(referenceTable.exists(varRef) && !mainType.equals(referenceTable.getType(varRef))) {
+          System.out.println("ERROR] Tipo de atribuição inválido.\r\n");
+          System.exit(1);
+        }
+
         if (referenceTable.exists(varRef)) {
-          var = new VariableAttribution("double", varRef, referenceTable.getVariableSerialID(varRef));
+          var = new VariableAttribution(referenceTable.getType(varRef), varRef, referenceTable.getVariableSerialID(varRef));
         } else {
-          var = new VariableAttribution("double", varRef);
+          var = new VariableAttribution(mainType, varRef);
           referenceTable.addVariable(var);
         }
 
-        if (exp == null) {
-          var.addAllExpChildren(mainExp);
-          return var;
-        }
+        
         mainBlock = new BlockElement();
         elseBlock = new BlockElement();
         mainBlock.addAllExpChildren(mainExp);
-        elseBlock.addAllExpChildren(elseExp);        
-        mainBlock.addChild(var);
-        elseBlock.addChild(var);
+        elseBlock.addAllExpChildren(elseExp);   
+        if (var != null) {
+          mainBlock.addChild(var);
+          elseBlock.addChild(var);
+        }     
         
         conditional = new ConditionalElement(exp, mainBlock, elseBlock);
         return conditional;
@@ -220,7 +244,7 @@ AbstractRenderElement logicalINLINE(String varRef) : {Token t; LinkedList <Abstr
 ////////////////////////////////////////////////////////////////////////////////////
 AbstractRenderElement loopWHILE() : {Token t; LinkedList <AbstractExpression> expList;LoopElement  loop = null;VariableAttribution var; BlockElement mainBlock =null;}
 {
-      <WHILE> <AP> expList = logicalExpressionOR("BlockEnd"+(BlockElement.getQtyBlockInstances() + 1) ) <FP> <AC> mainBlock = parseBlock() <FC> 
+      <WHILE> <AP> expList = logicalExpressionOR(""+(BlockElement.getQtyBlockInstances() + 1), true) <FP> <AC> mainBlock = parseBlock() <FC> 
       {
         loop = new LoopElement(expList, mainBlock);
 
@@ -230,7 +254,7 @@ AbstractRenderElement loopWHILE() : {Token t; LinkedList <AbstractExpression> ex
 ////////////////////////////////////////////////////////////////////////////////////
 AbstractRenderElement loopDOWHILE() : {Token t; LinkedList <AbstractExpression> expList;DoWhileElement loop = null;VariableAttribution var; BlockElement mainBlock =null;}
 {
-      <DO> <AC> mainBlock = parseBlock() <FC> <WHILE> <AP> expList = logicalExpressionOR("BlockEnd"+(BlockElement.getQtyBlockInstances()) ) <FP>
+      <DO> <AC> mainBlock = parseBlock() <FC> <WHILE> <AP> expList = logicalExpressionOR(""+(BlockElement.getQtyBlockInstances()), true) <FP>
       {
         loop = new DoWhileElement(expList, mainBlock);
 
@@ -249,7 +273,7 @@ LinkedList<RenderElementInterface> readAttributionCollection() : {LinkedList<Ren
 ////////////////////////////////////////////////////////////////////////////////////
 AbstractRenderElement loopFOR() : {Token t; LinkedList <AbstractExpression> expList;LoopElement  loop = null;VariableAttribution var; BlockElement mainBlock =null;LinkedList<RenderElementInterface> pre, post;}
 {
-      <FOR> <AP> pre=readAttributionCollection() <PT_VIRG> expList = logicalExpressionOR("BlockEnd"+(BlockElement.getQtyBlockInstances() + 1) ) <PT_VIRG> post=readAttributionCollection() <FP> <AC> mainBlock = parseBlock() <FC> 
+      <FOR> <AP> pre=readAttributionCollection() <PT_VIRG> expList = logicalExpressionOR(""+(BlockElement.getQtyBlockInstances() + 1), true) <PT_VIRG> post=readAttributionCollection() <FP> <AC> mainBlock = parseBlock() <FC> 
       {
         loop = new ForElement(pre, post, expList, mainBlock);
         return loop;
@@ -258,7 +282,7 @@ AbstractRenderElement loopFOR() : {Token t; LinkedList <AbstractExpression> expL
 ////////////////////////////////////////////////////////////////////////////////////
 AbstractRenderElement logicalIF() : {Token t; LinkedList <AbstractExpression> expList;ConditionalElement  conditional = null;VariableAttribution var; BlockElement mainBlock =null, elseBlock = null;}
 {
-      <IF> <AP> expList = logicalExpressionOR(""+(BlockElement.getQtyBlockInstances() + 1) ) <FP> <AC> mainBlock = parseBlock() <FC> (<ELSE><AC> elseBlock = parseBlock() <FC>)? 
+      <IF> <AP> expList = logicalExpressionOR(""+(BlockElement.getQtyBlockInstances() + 1), false) <FP> <AC> mainBlock = parseBlock() <FC> (<ELSE><AC> elseBlock = parseBlock() <FC>)? 
       {
         if (elseBlock != null) {
           conditional = new ConditionalElement(expList, mainBlock, elseBlock);
@@ -269,13 +293,13 @@ AbstractRenderElement logicalIF() : {Token t; LinkedList <AbstractExpression> ex
       }
 }
 //////////////////////////////////////////////////////////////////////////////////////
-LinkedList <AbstractExpression> logicalExpressionOR(String blockTarget) : { LinkedList <AbstractExpression> item=null;MathOperator mathOperator = null;Token operacao=null; LinkedList <AbstractExpression> expList = new LinkedList <AbstractExpression> (); int qtyORs = 1; }
+LinkedList <AbstractExpression> logicalExpressionOR(String blockTarget, boolean internal) : { LinkedList <AbstractExpression> item=null;MathOperator mathOperator = null;Token operacao=null; LinkedList <AbstractExpression> expList = new LinkedList <AbstractExpression> (); int qtyORs = 1; }
 {
-      item= logicalExpressionAND("ORBranch"+blockTarget+""+qtyORs, "BlockBegin"+blockTarget) // a
+      item= logicalExpressionAND("ORBranch"+blockTarget+""+qtyORs, internal? "ORBranch"+blockTarget+""+qtyORs+"Pass" : "BlockBegin"+blockTarget) // a
       {
        expList.addAll(item);
        }
-       ((operacao=<OR>)  item = logicalExpressionAND("ORBranch"+blockTarget+""+(qtyORs + 1), "BlockBegin"+blockTarget) //b
+       ((operacao=<OR>)  item = logicalExpressionAND("ORBranch"+blockTarget+""+(qtyORs + 1), internal? "ORBranch"+blockTarget+""+qtyORs+"Pass" : "BlockBegin"+blockTarget) //b
        {
         expList.add(new Label("ORBranch"+blockTarget+""+qtyORs));
         expList.addAll(item); 
@@ -287,6 +311,7 @@ LinkedList <AbstractExpression> logicalExpressionOR(String blockTarget) : { Link
       {
        expList.add(new Label("ORBranch"+blockTarget+""+qtyORs));
        expList.add(new Goto("BlockEnd"+blockTarget));
+       if (internal) expList.add(new Label("ORBranch"+blockTarget+""+qtyORs+"Pass"));
 
         return expList;
        }
@@ -327,7 +352,66 @@ LinkedList <AbstractExpression> logicalFactor(String blockTarget, boolean invert
        }
 }
 //////////////////////////////////////////////////////////////////////////////////////
-LinkedList <AbstractExpression> expression() : { LinkedList <AbstractExpression> item=null;MathOperator mathOperator = null;Token operacao=null; LinkedList <AbstractExpression> expList = new LinkedList <AbstractExpression> (); }
+LinkedList <AbstractExpression> expression() : { LinkedList <AbstractExpression> item=null;MathOperator mathOperator = null;Token operacao=null; LinkedList <AbstractExpression> expList = new LinkedList <AbstractExpression> (), acumulator = new LinkedList <AbstractExpression> (); StringMathOperator stringConcat = null; int cumulated = 0;}
+{
+      (item=factorString() | item= expressionLevel1())
+      {
+        if(item.getLast().getType().equals("string")) {
+          stringConcat = new StringMathOperator("+");
+          stringConcat.addChild(item);
+        }
+       expList.addAll(item);
+       }
+       ((operacao=<MATH_OPERATOR_GRAU_2>) (item=factorString() | item = expressionLevel1())
+       {
+        if (stringConcat != null) {
+          if (item.getLast().getType().equals("string") && operacao.image.equals("+")) {
+           
+            if (!acumulator.isEmpty()) {
+              stringConcat.addChild(acumulator);
+              acumulator = new LinkedList <AbstractExpression> ();
+              cumulated = 0;
+            }
+            stringConcat.addChild(item);
+          } else if(operacao.image.equals("+")|| cumulated > 0) {
+            acumulator.addAll(item);
+            cumulated++;
+            if (cumulated > 1) {
+              mathOperator = new MathOperator(operacao.image, acumulator.get(acumulator.size() - 2), acumulator.getLast());
+              acumulator.add(mathOperator); 
+            }
+          } else {
+            System.out.println("[ ERROR ] Operador inválido para concatenação de strings.\r\nTipo desconhecido: " + operacao.image + "\r\n");
+            System.exit(1);
+          }
+        } else {
+          if (item.getLast().getType().equals("string")) {
+            stringConcat = new StringMathOperator(operacao.image);
+            stringConcat.addChild(expList);
+            expList = new LinkedList<AbstractExpression>();
+            stringConcat.addChild(item);
+          } else {
+            expList.addAll(item); 
+            mathOperator = new MathOperator(operacao.image, expList.get(expList.size() - 2), expList.getLast());
+            expList.add(mathOperator); 
+          }
+        }
+       
+
+       }
+
+      )* 
+      {
+        if (stringConcat != null) {
+          expList.clear();
+          stringConcat.addChild(acumulator);
+          expList.add(stringConcat);
+        }
+       return expList;
+       }
+}
+//////////////////////////////////////////////////////////////////////////////////////
+LinkedList <AbstractExpression> expressionLevel2() : { LinkedList <AbstractExpression> item=null;MathOperator mathOperator = null;Token operacao=null; LinkedList <AbstractExpression> expList = new LinkedList <AbstractExpression> (); }
 {
       item= expressionLevel1() // a
       {
@@ -371,7 +455,7 @@ LinkedList <AbstractExpression> expressionLevel1() : { MathOperator mathOperator
 ////////////////////////////////////////////////////////////////////////////////////////
 LinkedList<AbstractExpression> factor() : {Token t; Variable var=null;Value value = null; int valorNumero;LinkedList <AbstractExpression> expList;}
 {
-  <AP> (expList = expression()) <FP> {
+  <AP> (expList = expressionLevel2()) <FP> {
     return expList;
   }
   |
@@ -386,11 +470,23 @@ LinkedList<AbstractExpression> factor() : {Token t; Variable var=null;Value valu
   |
   t = <NUMBER>
   {
-
     value = new Value("double", t.image);
     expList = new LinkedList <AbstractExpression> ();
     expList.add(value);
     return expList;
   }
+}
+////////////////////////////////////////////////////////////////////////////////////////
+LinkedList<AbstractExpression> factorString() : {Token t; Variable var=null;Value value = null; int valorNumero;LinkedList <AbstractExpression> expList;}
+{
+  t = <STRING>
+  {
+
+    value = new Value("string", t.image);
+    expList = new LinkedList <AbstractExpression> ();
+    expList.add(value);
+    return expList;
+  }
+  
 }
 //////////////////////////////////////////////////////////////////////////////////////

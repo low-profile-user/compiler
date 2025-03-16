@@ -9,9 +9,15 @@ public class LogicalOperator extends AbstractExpression {
   private String targetLabel;
   private String operator;
   public LogicalOperator(String operator, BaseTypedElement a, BaseTypedElement b, String targetLabel) {
-    a.setConversionIndex(3);
-    b.setConversionIndex(3);
-    this.setType(MathOperator.typeArray[3]);
+    if (a.getType().equals("string") && a.getType().equals(b.getType())) {
+      this.setType("string");
+    } else if(a.getTypeIndex() < 4 && b.getTypeIndex() < 4) {
+      a.setConversionIndex(3);
+      b.setConversionIndex(3);
+      this.setType(MathOperator.typeArray[3]);
+    } else {
+      System.out.println("[ERROR] Não é possível comparar string com valor do tipo númerico.");
+    }
     this.setOperator(operator);
     this.targetLabel = targetLabel;
   }
@@ -68,6 +74,13 @@ public class LogicalOperator extends AbstractExpression {
   }
 
   public String render() {
-    return "dcmpl\r\n" + this.operatorBytecode + " " + this.targetLabel + "\r\n";
+    String finalRender = "";
+    if (this.type.equals("string")) {
+      finalRender += "invokevirtual java/lang/String/compareTo("+this.getTypeArrayByteCodeKey()+")I\r\n";
+    } else {
+      finalRender += "dcmpl\r\n";
+    }
+    finalRender += this.operatorBytecode + " " + this.targetLabel + "\r\n";
+    return finalRender;
   }
 }

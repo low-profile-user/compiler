@@ -1,26 +1,56 @@
 a := 2 * 2;
 b := 2 + 2 + 2 * 10 * 50 / 2 + 2;
-c := 2 * 2 * 3 * 5 / 5;
-print(a);
-print(b);
+c := (2 * 2) * 3 * (5 - 5);
+
 print(c);
 
-if (b < a || b > a) {
-  print(a + b + c);
+if ( a > a || b > a && a > a) {
+  print(a);
   a := a * a;
   print(a);
-} else {
-  print(a);
 }
 
-i := 1;
+string := " test ";
+stringzz := (2*8) - 5 + 2 + string + (2*8) - 5 + 2 + " carro"+ string;
+print(stringzz);
 
-while(i <= 100) {
-  print(i);
-  i += 1.5 * 2;
+z := !a > a && b > a? "carro " + 2 * 2 : "moto " + 4 * 4;
+w := !a > a && b > a?  2 * 2 :  4 * 4;
+
+
+print(z);
+print(w);
+
+i:=0;
+print(i);
+while(i < 10) {
+  print("While: " + i);
+  i++;
 }
 
-do {
-  print(i);
-  i--;
-} while(i > 0);
+for (j:= 0; j <= 10; j++) {
+  print("FOR: "+j);
+}
+
+i:=0;
+print(i);
+do{
+  print("DO-WHILE: " + i);
+  i++;
+}while(i < 10);
+
+if(!"a" <= "b") {
+  print(string);
+}
+  
+numberNumeric := 2;
+numberString := "2.0";
+
+print("Number as Numeric: "+ numberNumeric);
+print("Number as String: "+ numberString);
+
+// Sem a conversão os tipos não podem ser comparados
+if (""+numberNumeric == numberString) {
+  //DFJASDKDJAFDFKÇ
+  print("Deu certo!");
+}

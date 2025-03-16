@@ -1,6 +1,10 @@
 package Render.Commands;
 
 import Render.BaseTypedElement;
+import Render.Expressions.AbstractExpression;
+
+import java.util.LinkedList;
+
 import Render.AbstractRenderElement;
 
 public class VariableAttribution extends AbstractRenderElement {
@@ -18,6 +22,15 @@ public class VariableAttribution extends AbstractRenderElement {
 
   public String getType() {
     return this.variable.getType();
+  }
+
+  @Override
+  public void addAllExpChildren(LinkedList<AbstractExpression> children) {
+    if(!children.isEmpty() && !children.getLast().getType().equals(this.getType())) {
+      System.out.println("[ERROR] Tipo de atribuição inválido.\r\n"+this.getType()+ " não pode receber valores do tipo "+children.getLast().getType());
+      System.exit(1);
+    }
+    super.addAllExpChildren(children);
   }
 
   public int getVariableSerialID() {

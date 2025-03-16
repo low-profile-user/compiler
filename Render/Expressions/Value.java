@@ -26,12 +26,15 @@ public class Value extends AbstractExpression {
         } else {
           this.value = value;
         }
+        break;
       default:
+        this.value = value;
         break;
     }
   }
 
   public String render() {
-    return "ldc2_w "+this.value + "\r\n" + this.getConversionByteCode();
+    String slotSize = this.getSlotSize() > 1 ? ""+this.getSlotSize() : "";
+    return "ldc"+slotSize+"_w "+this.value + "\r\n" + this.getConversionByteCode();
   }
 }
