@@ -54,3 +54,27 @@ if (""+numberNumeric == numberString) {
   //DFJASDKDJAFDFKÇ
   print("Deu certo!");
 }
+
+if ("") {
+  print("Não deve printar!");
+}
+
+if ("a") {
+  print("Deve printar!");
+}
+
+if (0) {
+  print("Não deve printar!");
+}
+
+if (1) {
+  print("Deve printar!");
+}
+
+if (false) {
+  print("Não deve printar!");
+}
+
+if (true) {
+  print("Deve printar!");
+}

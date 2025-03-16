@@ -9,6 +9,19 @@ public class Value extends AbstractExpression {
     this.setValue(value);
   }
 
+  public Value(String type) {
+    this.setType(type);
+    this.setDefault();
+  }
+
+  private void setDefault() {
+    if(this.type.equals("string")) {
+      this.value = "\"\"";
+    } else {
+      this.setValue("0");;
+    }
+  }
+
   public void setValue(String value) {
     switch (this.type) {
       case "double":

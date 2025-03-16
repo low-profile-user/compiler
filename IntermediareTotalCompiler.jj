@@ -84,6 +84,7 @@ TOKEN : {
       <AC: "{">   |
       <FC: "}">   |
       < PRINT: "print" > |
+      < BOOLEAN: "true"  | "false" > |
       <STRING: "\"" (~["\""])* "\"" > |
       < IDENT:   (["a"-"z"]|["A"-"Z"])(["a"-"z"]|["A"-"Z"]|["0"-"9"]|["_"])* > |
       < ATRIB:   ":=" >             |
@@ -295,11 +296,11 @@ AbstractRenderElement logicalIF() : {Token t; LinkedList <AbstractExpression> ex
 //////////////////////////////////////////////////////////////////////////////////////
 LinkedList <AbstractExpression> logicalExpressionOR(String blockTarget, boolean internal) : { LinkedList <AbstractExpression> item=null;MathOperator mathOperator = null;Token operacao=null; LinkedList <AbstractExpression> expList = new LinkedList <AbstractExpression> (); int qtyORs = 1; }
 {
-      item= logicalExpressionAND("ORBranch"+blockTarget+""+qtyORs, internal? "ORBranch"+blockTarget+""+qtyORs+"Pass" : "BlockBegin"+blockTarget) // a
+      item= logicalExpressionAND("ORBranch"+blockTarget+""+qtyORs, internal? "ORBranch"+blockTarget+""+qtyORs+"Pass" : "BlockBegin"+blockTarget)
       {
        expList.addAll(item);
        }
-       ((operacao=<OR>)  item = logicalExpressionAND("ORBranch"+blockTarget+""+(qtyORs + 1), internal? "ORBranch"+blockTarget+""+qtyORs+"Pass" : "BlockBegin"+blockTarget) //b
+       ((operacao=<OR>)  item = logicalExpressionAND("ORBranch"+blockTarget+""+(qtyORs + 1), internal? "ORBranch"+blockTarget+""+qtyORs+"Pass" : "BlockBegin"+blockTarget) 
        {
         expList.add(new Label("ORBranch"+blockTarget+""+qtyORs));
         expList.addAll(item); 
@@ -324,7 +325,7 @@ LinkedList <AbstractExpression> logicalExpressionAND(String exitTarget, String b
         
         expList.addAll(item);
       }
-       ((operacao=<AND>)  item = logicalFactor(exitTarget, true) //b
+       ((operacao=<AND>)  item = logicalFactor(exitTarget, true) 
        {
        expList.addAll(0,item); 
        
@@ -337,15 +338,23 @@ LinkedList <AbstractExpression> logicalExpressionAND(String exitTarget, String b
        }
 }
 //////////////////////////////////////////////////////////////////////////////////////
-LinkedList <AbstractExpression> logicalFactor(String blockTarget, boolean invert) : { LinkedList <AbstractExpression> item=null, item2=null;LogicalOperator logicalOperator = null;Token operacao=null; LinkedList <AbstractExpression> expList = new LinkedList <AbstractExpression> (); Token neg=null;boolean isInverting;}
+LinkedList <AbstractExpression> logicalFactor(String blockTarget, boolean invert) : { LinkedList <AbstractExpression> item=null, item2=null;LogicalOperator logicalOperator = null;Token operacao=null; LinkedList <AbstractExpression> expList = new LinkedList <AbstractExpression> (); Token neg=null;boolean isInverting;String operation;}
 {
-      (neg=<NEG>)? item= expression() operacao=<LOGICAL_OPERATOR> item2=expression() // a
+      (neg=<NEG>)? item= expression() (operacao=<LOGICAL_OPERATOR> item2=expression())?
       {
        expList.addAll(item);
-      
-       expList.addAll(item2); 
+
        isInverting = neg != null ? !invert : invert;
-       logicalOperator = new LogicalOperator(isInverting? LogicalOperator.getInvertedOperator(operacao.image) :operacao.image, item.getLast(), item2.getLast(), blockTarget);
+       
+       if (operacao == null) {
+          expList.add(new Value(item.getLast().getType()));
+          operation = ">";
+       } else {
+         expList.addAll(item2); 
+         operation = operacao.image;
+       }
+      
+       logicalOperator = new LogicalOperator(isInverting? LogicalOperator.getInvertedOperator(operation) : operation, item.getLast(), expList.getLast(), blockTarget);
        expList.add(logicalOperator); 
        
        return expList;
@@ -413,11 +422,11 @@ LinkedList <AbstractExpression> expression() : { LinkedList <AbstractExpression>
 //////////////////////////////////////////////////////////////////////////////////////
 LinkedList <AbstractExpression> expressionLevel2() : { LinkedList <AbstractExpression> item=null;MathOperator mathOperator = null;Token operacao=null; LinkedList <AbstractExpression> expList = new LinkedList <AbstractExpression> (); }
 {
-      item= expressionLevel1() // a
+      item= expressionLevel1()
       {
        expList.addAll(item);
        }
-       ((operacao=<MATH_OPERATOR_GRAU_2>)  item = expressionLevel1() //b
+       ((operacao=<MATH_OPERATOR_GRAU_2>)  item = expressionLevel1() 
        {
        expList.addAll(item); 
        mathOperator = new MathOperator(operacao.image, expList.get(expList.size() - 2), expList.getLast());
@@ -434,11 +443,11 @@ LinkedList <AbstractExpression> expressionLevel2() : { LinkedList <AbstractExpre
 //////////////////////////////////////////////////////////////////////////////////////
 LinkedList <AbstractExpression> expressionLevel1() : { MathOperator mathOperator = null;Token operacao=null; LinkedList <AbstractExpression> expList = new LinkedList <AbstractExpression> (), item=null; }
 {
-      item= factor() // a
+      item= factor()
       {
        expList.addAll(item);
        }
-       ((operacao=<MATH_OPERATOR_GRAU_1>)  item = factor() //b
+       ((operacao=<MATH_OPERATOR_GRAU_1>)  item = factor() 
        {
        expList.addAll(item); 
        mathOperator = new MathOperator(operacao.image, expList.get(expList.size() - 2), expList.getLast());
@@ -471,6 +480,14 @@ LinkedList<AbstractExpression> factor() : {Token t; Variable var=null;Value valu
   t = <NUMBER>
   {
     value = new Value("double", t.image);
+    expList = new LinkedList <AbstractExpression> ();
+    expList.add(value);
+    return expList;
+  }
+  |
+  t = <BOOLEAN>
+  {
+    value = new Value("double", t.image.equals("true")? "1" : "0");
     expList = new LinkedList <AbstractExpression> ();
     expList.add(value);
     return expList;
