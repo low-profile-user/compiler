@@ -12,7 +12,6 @@ public class VariableAttribution extends AbstractRenderElement {
   public VariableAttribution(String type, String referenceName) {
     this.variable.setType(type);
     this.variableSerialID = VariableAttribution.qtyVariableInstances;
-    System.out.println(this.variable.getSlotSize());
     VariableAttribution.qtyVariableInstances += this.variable.getSlotSize();
     this.referenceName = referenceName;
   }

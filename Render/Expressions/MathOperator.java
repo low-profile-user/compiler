@@ -3,7 +3,7 @@ package Render.Expressions;
 import Render.BaseTypedElement;
 
 public class MathOperator extends AbstractExpression {
-  private String operatorByteCode;
+  protected String operatorByteCode;
   public MathOperator(String operator, BaseTypedElement a, BaseTypedElement b) {
     int maxTypeIndex = Math.max(a.getTypeIndex(), b.getTypeIndex());
     a.setConversionIndex(maxTypeIndex);
