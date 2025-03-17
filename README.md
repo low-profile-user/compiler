@@ -18,9 +18,9 @@
 ```
 
 Depedências:
-- JavaCC: (https://javacc.github.io/javacc/)[https://javacc.github.io/javacc/]
-- Jasmin: (https://jasmin.sourceforge.net/)[https://jasmin.sourceforge.net/]
+- JavaCC: https://javacc.github.io/javacc/
+- Jasmin: https://jasmin.sourceforge.net/
 
 Referências:
- - (https://javaalmanac.io/bytecode/)[https://javaalmanac.io/bytecode/]
- - (https://en.wikipedia.org/wiki/List_of_Java_bytecode_instructions)[https://en.wikipedia.org/wiki/List_of_Java_bytecode_instructions]
+ - https://javaalmanac.io/bytecode/
+ - https://en.wikipedia.org/wiki/List_of_Java_bytecode_instructions
