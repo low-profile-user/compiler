@@ -1,17 +1,3 @@
-/*
-A linguagem fonte é simples, sendo formada por somente dois comandos:
-1. Comando de atribuição onde variáveis recebem expressões contendo valores representados por números romanos de 1 a 39;
-2. Comando de exibição de variável.
-Detalhes:
-i. os números são sempre escritos em romanos e em letras maiúsculas.
-ii. as variáveis, que não precisam de ser declaradas, são formadas por letra(s) minúscula(s).
-iii. o caractere de finalização de comando é o ponto-e-vírgula.
-iv.  comentários não são aceitos.
-v.  o comando de exibição só aceita uma variável e apresenta o valor em arábicos.
-*/
-
-
-/*  CompiladorExemplo.jj  -  Analisador Semântico */
 options {
   DEBUG_PARSER = false;
   DEBUG_TOKEN_MANAGER = false;
