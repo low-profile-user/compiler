@@ -13,15 +13,20 @@ if ( a > a || b > a && a > a) {
 string := " test ";
 stringzz := (2*8) - 5 + 2 + string + (2*8) - 5 + 2 + string;
 print(stringzz);
-
+// Operador ternário
 z := !a > a && b > a? "carro " + 2 * 2 :  ""+4 * 4;
-w := !a > a && b > a?  2 * 2 :  4 * 4;
+// Operador ternário - com expressões compostas
+w := 10 * lambda( false?  2 * 2 :  4 * 4);
 
 INTERNALIF := bool(!a > a && b > a);
+// Verificações com alteração da ordem de precedência
+if (bool(false || false) && bool(false || true)) {
+  print("Não deve ser printado");
+}
 
 print(z);
 print(w);
-print(INTERNALIF);
+print(INTERNALIF + 2);
 
 i:=0;
 print(i);
@@ -35,7 +40,6 @@ for (j:= 0; j <= 10; j++) {
 }
 
 i:=0;
-print(i);
 do{
   print("DO-WHILE: " + i);
   i++;
@@ -53,30 +57,10 @@ print("Number as String: "+ numberString);
 
 // Sem a conversão os tipos não podem ser comparados
 if (""+numberNumeric == numberString) {
-  //DFJASDKDJAFDFKÇ
   print("Deu certo!");
 }
 
-if ("") {
-  print("Não deve printar!");
-}
-
-if ("a") {
-  print("Deve printar!");
-}
-
-if (0) {
-  print("Não deve printar!");
-}
-
-if (1) {
-  print("Deve printar!");
-}
-
-if (false) {
-  print("Não deve printar!");
-}
 
 if (true) {
-  print("Deve printar!");
+  print("Deve printar! "+lambda(false? "WORLD": "HELLO"));
 }

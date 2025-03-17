@@ -87,6 +87,7 @@ TOKEN : {
       <FC: "}">   |
       < PRINT: "print" > |
       < BOOLEAN_CALL: "bool"> |
+      < LAMBDA_CALL: "lambda"> |
       < BOOLEAN: "true"  | "false" > |
       <STRING: "\"" (~["\""])* "\"" > |
       < IDENT:   (["a"-"z"]|["A"-"Z"])(["a"-"z"]|["A"-"Z"]|["0"-"9"]|["_"])* > |
@@ -211,15 +212,8 @@ LinkedList<AbstractExpression> logicalINLINE(String varRef) : {Token t=null; Lin
           System.exit(1);
         } 
 
-
         mainType = mainExp.getLast().getType();
         elseType = elseExp.getLast().getType();
-
-                
-        if(referenceTable.exists(varRef) && !mainType.equals(referenceTable.getType(varRef))) {
-          System.out.println("ERROR] Tipo de atribuição inválido.\r\n");
-          System.exit(1);
-        }
 
         if (referenceTable.exists(varRef)) {
           type = referenceTable.getType(varRef);
@@ -232,10 +226,6 @@ LinkedList<AbstractExpression> logicalINLINE(String varRef) : {Token t=null; Lin
         elseBlock = new BlockElement();
         mainBlock.addAllExpChildren(mainExp);
         elseBlock.addAllExpChildren(elseExp);   
-        // if (var != null) {
-        //   mainBlock.addChild(var);
-        //   elseBlock.addChild(var);
-        // }     
         
         conditional = new InlineConditionalElement(type, exp, mainType, mainBlock, elseType, elseBlock);
         exp = new LinkedList<AbstractExpression>();
@@ -518,6 +508,11 @@ LinkedList<AbstractExpression> factor() : {Token t; Variable var=null;Value valu
   }
   |  
   t=<BOOLEAN_CALL><AP> expList=logicalExpressionORInline() <FP>
+  {
+    return expList;
+  }
+  |
+  <LAMBDA_CALL><AP> expList = logicalINLINE("")<FP>
   {
     return expList;
   }
