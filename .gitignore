@@ -26,3 +26,11 @@ hs_err_pid*
 replay_pid*
 
 # End of https://www.toptal.com/developers/gitignore/api/java
+
+
+#Generated-files
+*.j
+Token*.java
+IntermediareTotalCompiler*.java
+ParseException.java
+SimpleCharStream.java
