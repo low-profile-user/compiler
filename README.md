@@ -2,13 +2,13 @@
 
 ***Build Compiler***
  ```
- javacc IntermediareTotalCompiler.jj
+ javacc IntermediareTotalCompiler.jj &&
  javac *.java
 ```
 
 ***Build Code***
  ```
- java IntermediareTotalCompiler < Entrada.txt
+ java IntermediareTotalCompiler < Entrada.txt &&
  java -jar jamin.jar prog_destino.j
 ```
 
