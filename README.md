@@ -9,7 +9,7 @@
 ***Build Code***
  ```
  java IntermediareTotalCompiler < Entrada.txt &&
- java -jar jamin.jar prog_destino.j
+ java -jar jasmin.jar prog_destino.j
 ```
 
 ***Run Code***
