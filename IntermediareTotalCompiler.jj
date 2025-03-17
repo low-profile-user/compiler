@@ -43,6 +43,7 @@ import Render.FlowControllers.LoopElement;
 public class IntermediareTotalCompiler {
   static ReferenceTable referenceTable = new ReferenceTable();
   static BlockElement mainBlock; 
+  static int totalInlineConditionals = 0;
   public static void main(String args[])  throws ParseException  {
     try {      
       IntermediareTotalCompiler analisador = new IntermediareTotalCompiler (System.in);
@@ -202,14 +203,8 @@ AbstractRenderElement atribui() : {Token t, attrType; LinkedList <AbstractExpres
 ////////////////////////////////////////////////////////////////////////////////////
 LinkedList<AbstractExpression> logicalINLINE(String varRef) : {Token t=null; LinkedList <AbstractExpression> exp=null, mainExp =null, elseExp = null;InlineConditionalElement  conditional = null;VariableAttribution var;BlockElement mainBlock = null, elseBlock = null;String mainType= "", elseType="", type = "";}
 {
-      (exp=logicalExpressionOR( ""+(BlockElement.getQtyBlockInstances() + 1), false) (<TER_IF> mainExp = expression() ":" elseExp = expression()) |  t=<BOOLEAN_CALL><AP> exp=logicalExpressionOR( ""+(BlockElement.getQtyBlockInstances() + 1), false) <FP>)
+      exp=logicalExpressionOR( ""+(BlockElement.getQtyBlockInstances() + 1), false) (<TER_IF> mainExp = expression() ":" elseExp = expression())
       {
-        if (t != null) {
-          conditional = new InlineConditionalElement(exp);
-          exp = new LinkedList<AbstractExpression>();
-          exp.add(conditional);
-          return exp;
-        }
 
         if(mainExp.isEmpty() || elseExp.isEmpty()) {
           System.out.println("[ERROR] Expressão ternária não pode ter retorno vazio.");
@@ -300,13 +295,39 @@ AbstractRenderElement logicalIF() : {Token t; LinkedList <AbstractExpression> ex
       }
 }
 //////////////////////////////////////////////////////////////////////////////////////
-LinkedList <AbstractExpression> logicalExpressionOR(String blockTarget, boolean internal) : { LinkedList <AbstractExpression> item=null;MathOperator mathOperator = null;Token operacao=null; LinkedList <AbstractExpression> expList = new LinkedList <AbstractExpression> (); int qtyORs = 1; }
+LinkedList <AbstractExpression> logicalExpressionOR(String blockTarget, boolean internal) : { Token operacao=null; LinkedList <AbstractExpression> expList; }
 {
-      item= logicalExpressionAND("ORBranch"+blockTarget+""+qtyORs, internal? "ORBranch"+blockTarget+""+qtyORs+"Pass" : "BlockBegin"+blockTarget)
+      expList=logicalExpressionORContent(blockTarget, internal)
+      {
+       expList.add(new Goto("BlockEnd"+blockTarget));
+       if (internal) expList.add(new Label("ORBranch"+blockTarget+"Pass"));
+
+        return expList;
+       }
+}
+//////////////////////////////////////////////////////////////////////////////////////
+LinkedList <AbstractExpression> logicalExpressionORInline() : { Token operacao=null; LinkedList <AbstractExpression> expList; String blockTarget = "Inline"+(++totalInlineConditionals); }
+{
+      expList=logicalExpressionORContent(blockTarget, true)
+      {
+       expList.add(new Value("int", "0"));
+       expList.add(new Goto("ORBranch"+blockTarget+"End"));
+
+       expList.add(new Label("ORBranch"+blockTarget+"Pass"));
+       expList.add(new Value("int", "1"));
+       expList.add(new Label("ORBranch"+blockTarget+"End"));
+
+        return expList;
+       }
+}
+//////////////////////////////////////////////////////////////////////////////////////
+LinkedList <AbstractExpression> logicalExpressionORContent(String blockTarget, boolean internal) : { LinkedList <AbstractExpression> item=null;MathOperator mathOperator = null;Token operacao=null; LinkedList <AbstractExpression> expList = new LinkedList <AbstractExpression> (); int qtyORs = 1; }
+{
+      item= logicalExpressionAND("ORBranch"+blockTarget+""+qtyORs, internal? "ORBranch"+blockTarget+"Pass" : "BlockBegin"+blockTarget)
       {
        expList.addAll(item);
        }
-       ((operacao=<OR>)  item = logicalExpressionAND("ORBranch"+blockTarget+""+(qtyORs + 1), internal? "ORBranch"+blockTarget+""+qtyORs+"Pass" : "BlockBegin"+blockTarget) 
+       ((operacao=<OR>)  item = logicalExpressionAND("ORBranch"+blockTarget+""+(qtyORs + 1), internal? "ORBranch"+blockTarget+"Pass" : "BlockBegin"+blockTarget) 
        {
         expList.add(new Label("ORBranch"+blockTarget+""+qtyORs));
         expList.addAll(item); 
@@ -317,9 +338,6 @@ LinkedList <AbstractExpression> logicalExpressionOR(String blockTarget, boolean 
       )* 
       {
        expList.add(new Label("ORBranch"+blockTarget+""+qtyORs));
-       expList.add(new Goto("BlockEnd"+blockTarget));
-       if (internal) expList.add(new Label("ORBranch"+blockTarget+""+qtyORs+"Pass"));
-
         return expList;
        }
 }
@@ -496,6 +514,11 @@ LinkedList<AbstractExpression> factor() : {Token t; Variable var=null;Value valu
     value = new Value("double", t.image.equals("true")? "1" : "0");
     expList = new LinkedList <AbstractExpression> ();
     expList.add(value);
+    return expList;
+  }
+  |  
+  t=<BOOLEAN_CALL><AP> expList=logicalExpressionORInline() <FP>
+  {
     return expList;
   }
 }

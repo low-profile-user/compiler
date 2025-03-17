@@ -34,7 +34,7 @@ public class Value extends AbstractExpression {
         break;
       case "int":
       case "long":
-        if (!value.contains(".")) {
+        if (value.contains(".")) {
           this.value = value.split(".")[0];
         } else {
           this.value = value;
